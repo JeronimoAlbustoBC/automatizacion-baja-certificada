@@ -13,5 +13,5 @@ link: https://servicioscf.afip.gob.ar/Publico/rg830/rg830.aspx
 
 
 
+<img src="./flujo proceso.png" alt="diagrama de flujo" width="300" />
 
-![diagrama de flujo](./flujo%20proceso.png)
