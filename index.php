@@ -12,8 +12,10 @@ curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 $htmlContent = curl_exec($ch);
 curl_close($ch);
 
+
 // Buscar enlace de archivo comprimido
-preg_match('/href="([^"]+\.(zip|tar\.gz|rar))"/i', $htmlContent, $matches);
+preg_match('/href="([^"]+\.(zip|tar\.gz|rar|tar\.bz2))"/i', $htmlContent, $matches);
+
 
 // Si se encuentra un archivo para descargar
 if (isset($matches[1])) {
