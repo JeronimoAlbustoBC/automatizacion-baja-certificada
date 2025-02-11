@@ -56,8 +56,16 @@ if (isset($matches[1])) {
             $phar->extractTo($extractPath);
             break;
         case 'rar':
-            $rarFile = RarArchive::open($downloadPath);
-            $rarFile->extractTo($extractPath);
+            // Usar el comando `unrar` para extraer archivos RAR
+            $command = "unrar x '$downloadPath' '$extractPath'";
+            exec($command, $output, $status);
+
+            if ($status === 0) {
+                echo "Archivo RAR extraído correctamente.";
+            } else {
+                echo "Hubo un error al extraer el archivo RAR.";
+                print_r($output);
+            }
             break;
     }
 
@@ -65,5 +73,3 @@ if (isset($matches[1])) {
 } else {
     echo "No se encontró un archivo para descargar.";
 }
-
-?>
