@@ -23,6 +23,6 @@ crear una funcion que capture una url y que se contatene con una url(https://dat
 
 
 
-crear tabla que tenga el cuit; nombre; nombre de archivo; fecha-procesamiento; fecha desde;  fecha hasta; porcentaje; si es cliente o no;
+crear una tabla que tenga el cuit; nombre; nombre de archivo; fecha-procesamiento; fecha desde;  fecha hasta; porcentaje; si es cliente o no;
 
-y agregale los datos que vienen de los archivos en esta tabla
+y crear un script que le agrege los datos que vienen de los archivos en esta tabla creada
