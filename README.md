@@ -21,7 +21,7 @@ crear una funcion que capture una url y que se contatene con una url(https://dat
 
 
 
-
+nombre tabla: certificados_aut
 
 crear una tabla que tenga el cuit; nombre; nombre de archivo; fecha-procesamiento; fecha desde;  fecha hasta; porcentaje; si es cliente o no;
 
