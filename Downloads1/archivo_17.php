@@ -1,7 +1,7 @@
 <?php
-$servername = "localhost";  // Tu servidor MySQL
-$username = "root";         // Tu usuario de MySQL
-$password = "";             // Tu contraseña de MySQL
+$servername = "192.9.200.25";  // Tu servidor MySQL
+$username = "admindba";         // Tu usuario de MySQL
+$password = "axw043";             // Tu contraseña de MySQL
 $dbname = "certificados_aut";
 
 // Crear conexión
@@ -43,7 +43,7 @@ function procesarArchivo($conn, $archivo) {
 }
 
 // Procesar el archivo
-procesarArchivo($conn, "archivo.txt"); // Cambiar "archivo.txt" por el nombre del archivo
+procesarArchivo($conn, "rg17.txt"); // Cambiar "archivo.txt" por el nombre del archivo
 
 // Cerrar la conexión
 $conn->close();
