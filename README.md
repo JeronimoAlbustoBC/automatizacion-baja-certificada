@@ -33,3 +33,80 @@ y crear un script que le agrege los datos que vienen de los archivos en esta tab
 
 
 cuit, nombre de archivo, fecha desde, fecha hasta
+
+
+<?php
+// Configuración de la conexión a la base de datos
+$servername = "localhost";
+$username = "root"; // Reemplaza con tu usuario
+$password = ""; // Reemplaza con tu contraseña
+$dbname = "certificados_aut";
+
+// Crear conexión
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Verificar la conexión
+if ($conn->connect_error) {
+    die("Conexión fallida: " . $conn->connect_error);
+}
+
+// Función para procesar el archivo .txt
+function procesarArchivo2($archivo)
+{
+    global $conn; // Usamos la conexión global $conn
+
+    // Verificamos si el archivo existe
+    if (!file_exists($archivo)) {
+        echo "El archivo no existe: $archivo <br>";
+        return;
+    }
+
+    // Obtener la fecha de procesamiento
+    $fecha_procesamiento = date('Y-m-d'); // Fecha actual
+
+    // Abrir el archivo .txt
+    if (($handle = fopen($archivo, 'r')) !== false) {
+        // Leer cada línea del archivo
+        $isFirstLine = true;
+        while (($data = fgetcsv($handle, 1000, ';')) !== false) {
+            // Saltar la primera línea que contiene los encabezados
+            if ($isFirstLine) {
+                $isFirstLine = false;
+                continue;
+            }
+
+            // Asignar los valores a variables
+            $cuit = $data[1];
+            $nombre = $data[2];
+            $nombre_archivo = basename($archivo); // Nombre del archivo
+            $fecha_desde = date('Y-m-d', strtotime($data[6])); // Convertir la fecha al formato MySQL
+            $fecha_hasta = date('Y-m-d', strtotime($data[7])); // Convertir la fecha al formato MySQL
+            $porcentaje = $data[4];
+            $es_cliente = ($data[4] == 100) ? 1 : 0; // Si el porcentaje es 100, se considera cliente
+
+            // Preparar la consulta SQL para insertar los datos
+            $sql = "INSERT INTO certificados (cuit, nombre, nombre_archivo, fecha_procesamiento, fecha_desde, fecha_hasta, porcentaje, es_cliente) 
+                    VALUES ('$cuit', '$nombre', '$nombre_archivo', '$fecha_procesamiento', '$fecha_desde', '$fecha_hasta', $porcentaje, $es_cliente)";
+
+            // Ejecutar la consulta
+            if ($conn->query($sql) === TRUE) {
+                echo "Nuevo registro insertado correctamente para el CUIT: $cuit <br>";
+            } else {
+                echo "Error: " . $sql . "<br>" . $conn->error;
+            }
+        }
+
+        // Cerrar el archivo .txt
+        fclose($handle);
+    } else {
+        echo "Error al abrir el archivo.";
+    }
+}
+
+// Llamar la función procesarArchivo2 con la ruta del archivo
+$archivo = 'ruta_del_archivo.txt'; // Cambia esto a la ruta de tu archivo .txt
+procesarArchivo2($archivo);
+
+// Cerrar la conexión
+$conn->close();
+?>
