@@ -65,7 +65,8 @@ function procesarArchivo1($archivo)
 
 
 
-// Función para procesar el segundo archivo (formato 2)
+
+
 function procesarArchivo2($archivo)
 {
     global $pdo;
@@ -76,12 +77,6 @@ function procesarArchivo2($archivo)
         return;
     }
 
-    // Preparar la consulta para insertar los datos en la base de datos
-    $stmt = $pdo->prepare("
-        INSERT INTO certificados (cuit, nombre, nombre_archivo, fecha_procesamiento, fecha_desde, fecha_hasta, porcentaje, es_cliente)
-        VALUES (:cuit, :nombre, :nombre_archivo, :fecha_procesamiento, :fecha_desde, :fecha_hasta, :porcentaje, :es_cliente)
-    ");
-
     // Leer todas las líneas del archivo
     $lineas = file($archivo, FILE_IGNORE_NEW_LINES);
     if (!$lineas) {
@@ -89,6 +84,10 @@ function procesarArchivo2($archivo)
         return;
     }
 
+    // Ignorar la primera línea (encabezado)
+    array_shift($lineas);
+
+    // Procesar cada línea del archivo
     foreach ($lineas as $linea) {
         $datos = explode(";", $linea);
 
@@ -99,34 +98,53 @@ function procesarArchivo2($archivo)
         }
 
         // Extraemos los datos
-        $cuit = $datos[1]; // CUIT
-        $nombre = $datos[2]; // Razón social
-        $fecha_desde = $datos[6]; // Fecha desde (formato DD/MM/YYYY)
-        $fecha_hasta = $datos[7]; // Fecha hasta (formato DD/MM/YYYY)
-        $porcentaje = $datos[4]; // Porcentaje
+        $cuit = (string)$datos[1]; // CUIT
+        $nombre = (string)$datos[2]; // Razón social
+        $fecha_desde = (string)$datos[6]; // Fecha desde (formato DD/MM/YYYY)
+        $fecha_hasta = (string)$datos[7]; // Fecha hasta (formato DD/MM/YYYY)
+        $porcentaje = (float)$datos[4]; // Porcentaje
         $es_cliente = 1; // Asumido siempre cliente
 
         // Convertir las fechas de formato DD/MM/YYYY a YYYY-MM-DD
         $fecha_desde = convertirFecha($fecha_desde);
         $fecha_hasta = convertirFecha($fecha_hasta);
 
-        // Insertamos los datos en la base de datos
-        try {
+        // Verificar si las fechas son válidas
+        if ($fecha_desde === '0000-00-00' || $fecha_hasta === '0000-00-00') {
+            echo "Fecha inválida en el archivo: $linea <br>";
+            continue;
+        }
 
-            $stmt->bindParam(':cuit', $cuit);
-            $stmt->bindParam(':nombre', $nombre);
-            $stmt->bindParam(':nombre_archivo', $archivo);
-            $stmt->bindParam(':fecha_procesamiento', date('Y-m-d'));
-            $stmt->bindParam(':fecha_desde', $fecha_desde);
-            $stmt->bindParam(':fecha_hasta', $fecha_hasta);
-            $stmt->bindParam(':porcentaje', $porcentaje);
-            $stmt->bindParam(':es_cliente', $es_cliente, PDO::PARAM_BOOL);
-            $stmt->execute();
+        // Usamos "INSERT ... ON DUPLICATE KEY UPDATE" para insertar o actualizar según sea necesario
+        try {
+            $stmt_insert = $pdo->prepare("
+                INSERT INTO certificados (cuit, nombre, nombre_archivo, fecha_procesamiento, fecha_desde, fecha_hasta, porcentaje, es_cliente)
+                VALUES (:cuit, :nombre, :nombre_archivo, :fecha_procesamiento, :fecha_desde, :fecha_hasta, :porcentaje, :es_cliente)
+                ON DUPLICATE KEY UPDATE 
+                    nombre = VALUES(nombre),
+                    fecha_procesamiento = VALUES(fecha_procesamiento),
+                    porcentaje = VALUES(porcentaje),
+                    es_cliente = VALUES(es_cliente)
+            ");
+
+            $fecha_procesamiento = date('Y-m-d');
+            $stmt_insert->bindParam(':cuit', $cuit);
+            $stmt_insert->bindParam(':nombre', $nombre);
+            $stmt_insert->bindParam(':nombre_archivo', $archivo);
+            $stmt_insert->bindParam(':fecha_procesamiento', $fecha_procesamiento);
+            $stmt_insert->bindParam(':fecha_desde', $fecha_desde);
+            $stmt_insert->bindParam(':fecha_hasta', $fecha_hasta);
+            $stmt_insert->bindParam(':porcentaje', $porcentaje);
+            $stmt_insert->bindParam(':es_cliente', $es_cliente, PDO::PARAM_BOOL);
+            $stmt_insert->execute();
+
+            echo "Datos procesados correctamente para el archivo: $archivo <br>";
         } catch (PDOException $e) {
-            echo "Error al insertar datos: " . $e->getMessage() . "<br>";
+            echo "Error al insertar o actualizar los datos: " . $e->getMessage() . "<br>";
         }
     }
-    echo "Datos del archivo 2 procesados exitosamente: $archivo<br>";
+
+    echo "Datos del archivo procesados exitosamente: $archivo<br>";
 }
 
 // Función para convertir la fecha de formato DD/MM/YYYY a YYYY-MM-DD
@@ -139,6 +157,13 @@ function convertirFecha($fecha)
     }
     return '0000-00-00'; // Retornar una fecha predeterminada si la fecha no es válida
 }
+
+
+
+
+
+
+
 
 // Función para procesar el tercer archivo (formato 3)
 function procesarArchivo3($archivo)
