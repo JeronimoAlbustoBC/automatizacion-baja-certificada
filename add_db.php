@@ -67,6 +67,7 @@ function procesarArchivo1($archivo)
 
 
 
+// Función para procesar el archivo .txt
 function procesarArchivo2($archivo)
 {
     global $pdo;
@@ -77,141 +78,130 @@ function procesarArchivo2($archivo)
         return;
     }
 
-    // Leer todas las líneas del archivo
-    $lineas = file($archivo, FILE_IGNORE_NEW_LINES);
-    if (!$lineas) {
-        echo "No se pudo leer el archivo: $archivo <br>";
-        return;
-    }
+    // Obtener la fecha de procesamiento
+    $fecha_procesamiento = date('Y-m-d'); // Fecha actual
 
-    // Ignorar la primera línea (encabezado)
-    array_shift($lineas);
+    // Abrir el archivo .txt
+    if (($handle = fopen($archivo, 'r')) !== false) {
+        // Leer cada línea del archivo
+        $isFirstLine = true;
+        while (($data = fgetcsv($handle, 1000, ';')) !== false) {
+            // Saltar la primera línea que contiene los encabezados
+            if ($isFirstLine) {
+                $isFirstLine = false;
+                continue;
+            }
 
-    // Procesar cada línea del archivo
-    foreach ($lineas as $linea) {
-        $datos = explode(";", $linea);
+            // Asignar los valores a variables
+            $cuit = $data[1];
+            $nombre = $data[2];
+            $nombre_archivo = basename($archivo); // Nombre del archivo
+            $fecha_desde = date('Y-m-d', strtotime($data[6])); // Convertir la fecha al formato MySQL
+            $fecha_hasta = date('Y-m-d', strtotime($data[7])); // Convertir la fecha al formato MySQL
+            $porcentaje = $data[4];
+            $es_cliente = ($data[4] == 100) ? 1 : 0; // Si el porcentaje es 100, se considera cliente
 
-        // Verificamos si la línea contiene los suficientes datos
-        if (count($datos) < 8 || empty($datos[1]) || empty($datos[2])) {
-            echo "Línea incompleta o con datos vacíos en el archivo: $linea <br>";
-            continue;
+            // Usamos una sentencia preparada para evitar problemas de sintaxis
+            $sql = "INSERT IGNORE INTO certificados (cuit, nombre, nombre_archivo, fecha_procesamiento, fecha_desde, fecha_hasta, porcentaje, es_cliente) 
+            VALUES ('$cuit', '$nombre', '$nombre_archivo', '$fecha_procesamiento', '$fecha_desde', '$fecha_hasta', $porcentaje, $es_cliente)
+            ON DUPLICATE KEY UPDATE 
+            nombre = VALUES(nombre), 
+            fecha_procesamiento = VALUES(fecha_procesamiento), 
+            porcentaje = VALUES(porcentaje), 
+            es_cliente = VALUES(es_cliente)";
+    
+            
+            try {
+                // Preparar la consulta SQL
+                $stmt = $pdo->prepare($sql);
+                
+                // Bind de los parámetros
+                $stmt->bindParam(':cuit', $cuit);
+                $stmt->bindParam(':nombre', $nombre);
+                $stmt->bindParam(':nombre_archivo', $nombre_archivo);
+                $stmt->bindParam(':fecha_procesamiento', $fecha_procesamiento);
+                $stmt->bindParam(':fecha_desde', $fecha_desde);
+                $stmt->bindParam(':fecha_hasta', $fecha_hasta);
+                $stmt->bindParam(':porcentaje', $porcentaje);
+                $stmt->bindParam(':es_cliente', $es_cliente, PDO::PARAM_BOOL);
+
+                // Ejecutar la consulta
+                $stmt->execute();
+                echo "Nuevo registro insertado correctamente para el CUIT: $cuit <br>";
+            } catch (PDOException $e) {
+                echo "Error al insertar datos: " . $e->getMessage() . "<br>";
+            }
         }
 
-        // Extraemos los datos
-        $cuit = (string)$datos[1]; // CUIT
-        $nombre = (string)$datos[2]; // Razón social
-        $fecha_desde = (string)$datos[6]; // Fecha desde (formato DD/MM/YYYY)
-        $fecha_hasta = (string)$datos[7]; // Fecha hasta (formato DD/MM/YYYY)
-        $porcentaje = (float)$datos[4]; // Porcentaje
-        $es_cliente = 1; // Asumido siempre cliente
-
-        // Convertir las fechas de formato DD/MM/YYYY a YYYY-MM-DD
-        $fecha_desde = convertirFecha($fecha_desde);
-        $fecha_hasta = convertirFecha($fecha_hasta);
-
-        // Verificar si las fechas son válidas
-        if ($fecha_desde === '0000-00-00' || $fecha_hasta === '0000-00-00') {
-            echo "Fecha inválida en el archivo: $linea <br>";
-            continue;
-        }
-
-        // Usamos "INSERT ... ON DUPLICATE KEY UPDATE" para insertar o actualizar según sea necesario
-        try {
-            $stmt_insert = $pdo->prepare("
-                INSERT INTO certificados (cuit, nombre, nombre_archivo, fecha_procesamiento, fecha_desde, fecha_hasta, porcentaje, es_cliente)
-                VALUES (:cuit, :nombre, :nombre_archivo, :fecha_procesamiento, :fecha_desde, :fecha_hasta, :porcentaje, :es_cliente)
-                ON DUPLICATE KEY UPDATE 
-                    nombre = VALUES(nombre),
-                    fecha_procesamiento = VALUES(fecha_procesamiento),
-                    porcentaje = VALUES(porcentaje),
-                    es_cliente = VALUES(es_cliente)
-            ");
-
-            $fecha_procesamiento = date('Y-m-d');
-            $stmt_insert->bindParam(':cuit', $cuit);
-            $stmt_insert->bindParam(':nombre', $nombre);
-            $stmt_insert->bindParam(':nombre_archivo', $archivo);
-            $stmt_insert->bindParam(':fecha_procesamiento', $fecha_procesamiento);
-            $stmt_insert->bindParam(':fecha_desde', $fecha_desde);
-            $stmt_insert->bindParam(':fecha_hasta', $fecha_hasta);
-            $stmt_insert->bindParam(':porcentaje', $porcentaje);
-            $stmt_insert->bindParam(':es_cliente', $es_cliente, PDO::PARAM_BOOL);
-            $stmt_insert->execute();
-
-            echo "Datos procesados correctamente para el archivo: $archivo <br>";
-        } catch (PDOException $e) {
-            echo "Error al insertar o actualizar los datos: " . $e->getMessage() . "<br>";
-        }
+        // Cerrar el archivo .txt
+        fclose($handle);
+    } else {
+        echo "Error al abrir el archivo.";
     }
-
-    echo "Datos del archivo procesados exitosamente: $archivo<br>";
-}
-
-// Función para convertir la fecha de formato DD/MM/YYYY a YYYY-MM-DD
-function convertirFecha($fecha)
-{
-    $fechaParts = explode("/", $fecha); // Separar la fecha por "/"
-    if (count($fechaParts) == 3) {
-        // Devolver la fecha en formato YYYY-MM-DD
-        return "{$fechaParts[2]}-{$fechaParts[1]}-{$fechaParts[0]}";
-    }
-    return '0000-00-00'; // Retornar una fecha predeterminada si la fecha no es válida
 }
 
 
+// Llamar la función procesarArchivo2 con la ruta del archivo
+$archivo = 'Downloads2/RG830.txt'; // Cambia esto a la ruta de tu archivo .txt
 
 
 
 
 
 
-// Función para procesar el tercer archivo (formato 3)
-function procesarArchivo3($archivo)
-{
-    global $pdo;
 
-    $stmt = $pdo->prepare("
-        INSERT INTO certificados (cuit, nombre, nombre_archivo, fecha_procesamiento, fecha_desde, fecha_hasta, porcentaje, es_cliente)
-        VALUES (:cuit, :nombre, :nombre_archivo, :fecha_procesamiento, :fecha_desde, :fecha_hasta, :porcentaje, :es_cliente)
-    ");
 
-    $lineas = file($archivo, FILE_IGNORE_NEW_LINES); // Leer todas las líneas del archivo
-    foreach ($lineas as $linea) {
-        // Separamos los valores por tabuladores o espacios en el caso de un formato más complejo
-        $datos = preg_split('/\t+/', $linea); // Usamos preg_split para manejar tabulaciones
 
-        $cuit = $datos[0]; // CUIT
-        $nombre = trim($datos[1]); // Tipo de sujeto o nombre
-        $fecha_desde = $datos[8]; // Fecha desde
-        $fecha_hasta = $datos[9]; // Fecha hasta
-        $porcentaje = 100; // Asumido siempre 100
-        $es_cliente = 1; // Asumido siempre cliente
 
-        // Validar las fechas antes de insertarlas
-        if (empty($fecha_desde) || !preg_match('/\d{4}-\d{2}-\d{2}/', $fecha_desde)) {
-            $fecha_desde = '0000-00-00'; // O puedes usar NULL dependiendo de lo que prefieras en la base de datos
-        }
-        if (empty($fecha_hasta) || !preg_match('/\d{4}-\d{2}-\d{2}/', $fecha_hasta)) {
-            $fecha_hasta = '0000-00-00'; // O puedes usar NULL dependiendo de lo que prefieras en la base de datos
-        }
 
-        // Insertamos los datos en la base de datos
-        try {
-            $stmt->bindParam(':cuit', $cuit);
-            $stmt->bindParam(':nombre', $nombre);
-            $stmt->bindParam(':nombre_archivo', $archivo);
-            $stmt->bindParam(':fecha_procesamiento', date('Y-m-d'));
-            $stmt->bindParam(':fecha_desde', $fecha_desde);
-            $stmt->bindParam(':fecha_hasta', $fecha_hasta);
-            $stmt->bindParam(':porcentaje', $porcentaje);
-            $stmt->bindParam(':es_cliente', $es_cliente, PDO::PARAM_BOOL);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            echo "Error al insertar datos: " . $e->getMessage() . "<br>";
-        }
-    }
-    echo "Datos del archivo 3 procesados exitosamente: $archivo<br>";
-}
+
+// // Función para procesar el tercer archivo (formato 3)
+// function procesarArchivo3($archivo)
+// {
+//     global $pdo;
+
+//     $stmt = $pdo->prepare("
+//         INSERT INTO certificados (cuit, nombre, nombre_archivo, fecha_procesamiento, fecha_desde, fecha_hasta, porcentaje, es_cliente)
+//         VALUES (:cuit, :nombre, :nombre_archivo, :fecha_procesamiento, :fecha_desde, :fecha_hasta, :porcentaje, :es_cliente)
+//     ");
+
+//     $lineas = file($archivo, FILE_IGNORE_NEW_LINES); // Leer todas las líneas del archivo
+//     foreach ($lineas as $linea) {
+//         // Separamos los valores por tabuladores o espacios en el caso de un formato más complejo
+//         $datos = preg_split('/\t+/', $linea); // Usamos preg_split para manejar tabulaciones
+
+//         $cuit = $datos[0]; // CUIT
+//         $nombre = trim($datos[1]); // Tipo de sujeto o nombre
+//         $fecha_desde = $datos[8]; // Fecha desde
+//         $fecha_hasta = $datos[9]; // Fecha hasta
+//         $porcentaje = 100; // Asumido siempre 100
+//         $es_cliente = 1; // Asumido siempre cliente
+
+//         // Validar las fechas antes de insertarlas
+//         if (empty($fecha_desde) || !preg_match('/\d{4}-\d{2}-\d{2}/', $fecha_desde)) {
+//             $fecha_desde = '0000-00-00'; // O puedes usar NULL dependiendo de lo que prefieras en la base de datos
+//         }
+//         if (empty($fecha_hasta) || !preg_match('/\d{4}-\d{2}-\d{2}/', $fecha_hasta)) {
+//             $fecha_hasta = '0000-00-00'; // O puedes usar NULL dependiendo de lo que prefieras en la base de datos
+//         }
+
+//         // Insertamos los datos en la base de datos
+//         try {
+//             $stmt->bindParam(':cuit', $cuit);
+//             $stmt->bindParam(':nombre', $nombre);
+//             $stmt->bindParam(':nombre_archivo', $archivo);
+//             $stmt->bindParam(':fecha_procesamiento', date('Y-m-d'));
+//             $stmt->bindParam(':fecha_desde', $fecha_desde);
+//             $stmt->bindParam(':fecha_hasta', $fecha_hasta);
+//             $stmt->bindParam(':porcentaje', $porcentaje);
+//             $stmt->bindParam(':es_cliente', $es_cliente, PDO::PARAM_BOOL);
+//             $stmt->execute();
+//         } catch (PDOException $e) {
+//             echo "Error al insertar datos: " . $e->getMessage() . "<br>";
+//         }
+//     }
+//     echo "Datos del archivo 3 procesados exitosamente: $archivo<br>";
+// }
 
 // Función para procesar todos los archivos de una carpeta
 function procesarArchivosDeCarpeta($carpeta)
@@ -234,8 +224,8 @@ function procesarArchivosDeCarpeta($carpeta)
                 procesarArchivo1($rutaArchivo);
             } elseif (strpos($archivo, 'RG830.txt') !== false) {
                 procesarArchivo2($rutaArchivo);
-            } elseif (strpos($archivo, 'archivo.txt') !== false) {
-                procesarArchivo3($rutaArchivo);
+            // } elseif (strpos($archivo, 'archivo.txt') !== false) {
+            //     procesarArchivo3($rutaArchivo);
             }
         }
     }
@@ -244,4 +234,4 @@ function procesarArchivosDeCarpeta($carpeta)
 // Procesar los archivos en las carpetas
 procesarArchivosDeCarpeta('Downloads1');
 procesarArchivosDeCarpeta('Downloads2');
-procesarArchivosDeCarpeta('Downloads3');
+// procesarArchivosDeCarpeta('Downloads3');
