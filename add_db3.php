@@ -9,7 +9,6 @@ $password = 'axw043';
 $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-
 $archivo = 'Downloads3/archivo.txt';
 $nombre_archivo = basename($archivo);  
 $fecha_procesamiento = date('Y-m-d H:i:s');  
@@ -35,16 +34,26 @@ foreach ($lineas as $key => $linea) {
 
     // Verificar que la línea tiene al menos las columnas necesarias
     if (count($columnas) >= 10) {
-        // Asignar valores a las variables
+        
         $CUIT = $columnas[0];
-        $Nombre = $columnas[1];
-        $Fecha_Desde = date('Y-m-d', strtotime($columnas[9]));  // Convertir a formato DATE
-        $Fecha_Hasta = date('Y-m-d', strtotime($columnas[10]));  // Convertir a formato DATE
-        
-        // Definir un valor para porcentaje, si no tienes esta información, puedes poner un valor predeterminado
-        $Porcentaje = 0;  // Cambiar si es necesario
-        
-        // Definir si es cliente, basándonos en el campo 'Cod_Estado' (suposición: "CU" significa cliente)
+        $Nombre = $columnas[3];
+
+        // Usar DateTime::createFromFormat() para convertir las fechas
+        $Fecha_Desde = DateTime::createFromFormat('d/m/Y', $columnas[9]);  // Ajusta el formato según el formato de fecha en el archivo
+        $Fecha_Hasta = DateTime::createFromFormat('d/m/Y', $columnas[10]);  // Ajusta el formato según el formato de fecha en el archivo
+
+        // Verificar si la fecha fue creada correctamente
+        if ($Fecha_Desde && $Fecha_Hasta) {
+            // Formatear la fecha a 'Y-m-d'
+            $Fecha_Desde = $Fecha_Desde->format('Y-m-d');
+            $Fecha_Hasta = $Fecha_Hasta->format('Y-m-d');
+        } else {
+            // Si alguna fecha no es válida, se puede saltar esa fila o manejar el error
+            echo "Fecha inválida en la línea: " . $linea . "\n";
+            continue;
+        }
+
+        $Porcentaje = 0;
         $Cliente = 'si'; 
 
         // Bind de valores a los parámetros
@@ -63,4 +72,5 @@ foreach ($lineas as $key => $linea) {
 }
 
 echo "Datos insertados correctamente en la base de datos.";
+
 ?>
