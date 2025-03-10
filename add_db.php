@@ -80,7 +80,7 @@ function procesarArchivosDeCarpeta($carpeta)
     $archivos = scandir($carpeta);
 
     foreach ($archivos as $archivo) {
-        // Ignorar las entradas "." y ".."
+      
         if ($archivo != "." && $archivo != "..") {
             $rutaArchivo = $carpeta . DIRECTORY_SEPARATOR . $archivo;
             // Procesar el archivo dependiendo de su nombre o extensión
@@ -94,6 +94,6 @@ function procesarArchivosDeCarpeta($carpeta)
 // Procesar los archivos en las carpetas
 procesarArchivosDeCarpeta('Downloads1');
 
-// Cerrar la conexión al finalizar
+
 $pdo = null; // Esto cierra la conexión con la base de datos
 ?>

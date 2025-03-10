@@ -39,8 +39,8 @@ foreach ($lineas as $key => $linea) {
         $Nombre = $columnas[3];
 
         // Usar DateTime::createFromFormat() para convertir las fechas
-        $Fecha_Desde = DateTime::createFromFormat('d/m/Y', $columnas[9]);  // Ajusta el formato según el formato de fecha en el archivo
-        $Fecha_Hasta = DateTime::createFromFormat('d/m/Y', $columnas[10]);  // Ajusta el formato según el formato de fecha en el archivo
+        $Fecha_Desde = DateTime::createFromFormat('d/m/Y', $columnas[9]); 
+        $Fecha_Hasta = DateTime::createFromFormat('d/m/Y', $columnas[10]);
 
         // Verificar si la fecha fue creada correctamente
         if ($Fecha_Desde && $Fecha_Hasta) {
@@ -48,15 +48,14 @@ foreach ($lineas as $key => $linea) {
             $Fecha_Desde = $Fecha_Desde->format('Y-m-d');
             $Fecha_Hasta = $Fecha_Hasta->format('Y-m-d');
         } else {
-            // Si alguna fecha no es válida, se puede saltar esa fila o manejar el error
             echo "Fecha inválida en la línea: " . $linea . "\n";
             continue;
         }
 
         $Porcentaje = 0;
-        $Cliente = 'si'; 
+        $Cliente = ' '; 
 
-        // Bind de valores a los parámetros
+       
         $stmt->bindParam(':cuit', $CUIT);
         $stmt->bindParam(':nombre', $Nombre);
         $stmt->bindParam(':nombre_archivo', $nombre_archivo);
@@ -74,3 +73,4 @@ foreach ($lineas as $key => $linea) {
 echo "Datos insertados correctamente en la base de datos.";
 
 ?>
+
